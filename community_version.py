@@ -1,6 +1,9 @@
 # Community Version
 import argparse
 import webbrowser
+import re
+import sys
+import time
 
 from math import ceil
 from pathlib import Path
@@ -30,9 +33,11 @@ def convert_to_grayscale(image):
 def map_pixels_to_color(image, new_width=500, new_height=500):
     b = (0, 0, 0)
     y = (255, 255, 0)
+    w = (255,255,255)
     # creating new image with two different colors. Mixing more colors makes image blur.
-    ASCII_CHARS = [b, y, b, y]
-
+    #ASCII_CHARS = [b, y, b, y]
+    ASCII_CHARS = [b, y, w]
+    
     image = image.resize((new_width, new_height))
     image = convert_to_grayscale(image)
     pixels_in_image = list(image.getdata())
@@ -40,6 +45,8 @@ def map_pixels_to_color(image, new_width=500, new_height=500):
     pixels_to_chars = [
         ASCII_CHARS[int(pixel_value / 86)] for pixel_value in pixels_in_image
     ]
+    #print(pixels_to_chars)
+    
     # creating matrix to write new image with colors
     arr_2d = []
     arr3 = []
@@ -52,16 +59,60 @@ def map_pixels_to_color(image, new_width=500, new_height=500):
         arr_2d.append(arr3)
         arr3 = []
         temp = end_value
+    #print(arr_2d)
     # Re-writing  pixel
     smiley = Image.new("RGB", (new_width, new_height))
     for row in range(500):
         for col in range(new_width):
             smiley.putpixel((col, row), arr_2d[row][col])
     return smiley.show()
+    
 
+def drawing(image_ascii):
+    # converting string to list
+    pixels_to_chars = []
+    for char in image_ascii:
+        pixels_to_chars.append(char)
+    # converting string to matrix
+    arr_2d = []
+    arr3 = []
+    temp = 0
+    new_width=100
+    new_height=int(len(pixels_to_chars)/new_width)
 
+    for j in range(0, new_height):
+        start_value = temp
+        end_value = new_width * (j + 1)
+        for i in range(start_value, end_value):
+            arr3.append(pixels_to_chars[i])
+        arr_2d.append(arr3)
+        arr3 = []
+        temp = end_value
+    #defining multiple colour   
+    pink = "\033[1;35m"    
+    blue = "\033[1;34m"
+    yellow = "\033[1;33m"
+    green = "\033[1;32m"
+    red = "\033[1;31m"
+    slat = "\033[1;30m"
+
+    #sketching with different colour
+    for row in range(new_height):
+        if row%2 == 0:
+            color = red
+        elif row%3 == 0:
+            color = yellow 
+        else:
+            color = slat
+        
+        for col in range(new_width):
+            time.sleep(0.003)
+            sys.stdout.write(color)
+            sys.stdout.write(arr_2d[row][col])
+            sys.stdout.flush()
+   
 def map_pixels_to_ascii_chars(image, range_width, ascii_chars):
-    """Maps each pixel to an ascii char based on the range
+    """Maps each pixel to an ascii character based on the range
     in which it lies.
 
     0-255 is divided into 11 ranges of 25 pixels each.
@@ -101,6 +152,20 @@ def convert_image_to_ascii(
     return "\n".join(image_ascii)
 
 
+def single_ascii_replacement(image_ascii, single_ascii_char):
+    # Creating list for ASCII character and their count
+    asc_count = []
+    for asc_char in ["%", "?", "+", "°", "@", "O", "o", "#", "." ":", ",", "*", " "]:
+        asc_count.append((asc_char, image_ascii.count(asc_char)))
+    asc_count.sort(key=lambda x: x[1], reverse=True)
+    chr = asc_count[0][0]
+
+    # Replacing highest ASCII character with blank
+    new_image_re = re.sub(rf"{chr}", " ", image_ascii)
+    # Replacing ASCII characters with given single character
+    return re.sub(r"[!S%?+°@Oo#.:,*]", single_ascii_char, new_image_re)
+
+
 def hype(console):
     verbs = [
         "Articulating",
@@ -115,6 +180,16 @@ def hype(console):
         "Finalizing",
         "Testing",
         "Upgrading",
+        "Launching",
+        "Logging",
+        "Scanning",
+        "Setting up",
+        "Tracking",
+        "Finding",
+        "Cloning",
+        "Forking",
+        "Booting up",
+        "Loading in",
     ]
 
     nouns = [
@@ -131,7 +206,13 @@ def hype(console):
         "disks",
         "JPEGs",
         "ROMs",
-        "Viruses",
+        "RAMs",
+        "repositories",
+        "viruses",
+        "messages",
+        "errors",
+        "progress bar",
+        "users",
     ]
 
     # To print beautiful dummy progress bar to the user
@@ -142,11 +223,15 @@ def hype(console):
         sleep(1)
     console.log("[bold green]Here we go...!")
 
+
 def welcome_message(console):
     console.print("[bold yellow] Welcome to ASCII ART Generator!")
 
+
 def handle_black_yellow(image):
     map_pixels_to_color(image)
+
+
 
 def handle_image_print(image_ascii, color=None):
     console = Console()
@@ -180,19 +265,24 @@ def handle_image_conversion(image, range_width, ascii_chars, inverse_color):
 def init_args_parser():
     parser = argparse.ArgumentParser()
 
+    charset_group = parser.add_mutually_exclusive_group()
+
     parser.add_argument(
-        dest="image_file_path", nargs="?", type=str, help="Image file path."
+        dest="image_file_path", 
+        nargs="?", 
+        type=str, 
+        help="Image file path."
     )
 
     parser.add_argument(
         dest="stdin",
         nargs="?",
         type=argparse.FileType("rb"),
-        help="Read image from stdin",
+        help="Read image from stdin.",
         default=stdin,
     )
 
-    parser.add_argument(
+    charset_group.add_argument(
         "--preset",
         dest="preset",
         type=int,
@@ -200,14 +290,14 @@ def init_args_parser():
         help="Select 1 or 2 for predefined ASCII character sets.",
     )
 
-    parser.add_argument(
+    charset_group.add_argument(
         "--charset",
         dest="charset",
         nargs="+",
         help="A list of characters to display the image, from darkest to brightest.",
     )
 
-    parser.add_argument(
+    charset_group.add_argument(
         "--black-yellow",
         dest="black_yellow",
         action="store_true",
@@ -215,7 +305,10 @@ def init_args_parser():
     )
 
     parser.add_argument(
-        "--inverse", dest="inverse_image", action="store_true", default=False
+        "--inverse", 
+        dest="inverse_image", 
+        action="store_true", 
+        default=False
     )
 
     parser.add_argument(
@@ -238,14 +331,32 @@ def init_args_parser():
         ),
     )
 
+    parser.add_argument(
+        "--single-ascii_char",
+        dest="single_ascii_char",
+        type=str,
+        help=(
+            "A single ASCII character to display the image. "
+            "It uses existing default preset character to convert it into single."
+        ),
+    )
+
+    parser.add_argument(
+        "--drawing",
+        action='store_true',
+        help=(
+            "It will draw an image with multiple characters. "
+        ),
+    )
+
     return parser.parse_args()
 
 
 def get_predefined_charset(preset=1):
     if preset == 1:
-        return ["#", "?", "%", ".", "S", "+", ".", "*", ":", ",", "@"]
-    if preset == 2:
         return [" ", ".", "°", "*", "o", "O", "#", "@"]
+    if preset == 2:
+        return ["#", "?", "%", ".", "S", "+", ".", "*", ":", ",", "@"]
     raise ValueError("Preset character sets are either 1 or 2.")
 
 
@@ -269,6 +380,27 @@ def ask_user_for_image_path_until_success(get_image):
             return ask_user_for_image_path_until_success(
                 lambda: Image.open(prompt("> ", completer=PathCompleter()))
             )
+        except AttributeError:
+            print("The specified path is not of a valid image, please try again.")
+            return ask_user_for_image_path_until_success(
+                lambda: Image.open(prompt("> ", completer=PathCompleter()))
+            )
+        except IsADirectoryError:
+            print("The specified path is not of a valid image, please try again.")
+            return ask_user_for_image_path_until_success(
+                lambda: Image.open(prompt("> ", completer=PathCompleter()))
+        )
+        except KeyboardInterrupt:
+            print("Are you sure you want to quit Y/N : ")
+            input = prompt("> ")
+            if input.upper() =='Y' :
+                sys.exit()
+            else :
+                print("The specified path is not of a valid image, please try again.")
+                return ask_user_for_image_path_until_success(
+                    lambda: Image.open(prompt("> ", completer=PathCompleter()))
+        )
+
         else:
             return image
 
@@ -304,7 +436,7 @@ def handle_store_art(path, image_ascii, color):
     except Exception as e:
         print(e)
         print(
-            "\33[101mOops, I think you have choosed wrong file extension. Please give a svg file name e.g., output.txt \033[0m"
+            "\33[101mOops, you have chosen the wrong file extension. Please give a svg file name e.g., output.txt \033[0m"
         )
 
 
@@ -312,7 +444,8 @@ def main():
     args = init_args_parser()
 
     if not args.stdin.isatty():
-        image = read_image_from_stdin(args.stdin.buffer)
+        #image = read_image_from_stdin(args.stdin.buffer)
+        image = read_image_from_stdin(args.stdin)
     else:
         image = read_image_from_path(args.image_file_path)
 
@@ -335,6 +468,13 @@ def main():
     image_ascii = handle_image_conversion(
         image, range_width, ascii_chars, args.inverse_image
     )
+    if args.single_ascii_char:
+        image_ascii = single_ascii_replacement(image_ascii, args.single_ascii_char)
+    
+    if args.drawing:
+        drawing(image_ascii)
+        print("\n")
+        return
     # display the ASCII art to the console
     handle_image_print(image_ascii, args.color)
 

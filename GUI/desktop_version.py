@@ -8,7 +8,8 @@ import tkinter.messagebox as ms
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
-from community_version import convert_image_to_ascii
+#from community_version import convert_image_to_ascii
+from GUI.community_version import Image2ASCIIConverter
 
 
 W_WIDTH = 1200
@@ -34,7 +35,8 @@ def open_file():
     txt_ascii_art.config(state="normal")
     txt_ascii_art.delete("1.0", END)
     img = Image.open(filepath)
-    ascii_art = convert_image_to_ascii(img, RANGE_WIDTH, ascii_chars=ASCII_CHARS)
+    converter = Image2ASCIIConverter(ASCII_CHARS)
+    ascii_art = converter.convert_image_to_ascii(img, RANGE_WIDTH)
     txt_ascii_art.insert(END, ascii_art)
     txt_ascii_art.config(state="disabled")
     filename = filepath.split("/")[-1]
@@ -42,9 +44,18 @@ def open_file():
 
 
 def save_file():
-    ms.showerror("Error", "functionality not implemented yet")
-    pass
-
+    ascii_art = txt_ascii_art.get("1.0",END).strip()
+    if len(ascii_art) < 1:
+        ms.showerror("Null", "No data detected!")
+        return
+    if os.path.exists("./ascii.txt"):
+        if not ms.askyesno("File exist", "File exist. Do you want to overwrite the existing file?"):
+            ms.showinfo("Cancelled", "File not saved")
+            return    
+    with open("ascii.txt", "w") as file:
+        file.write(ascii_art)
+        ms.showinfo("status", "File Succesfully Saved!")
+        return
 
 def init_window() -> Tk:
     window = Tk()
